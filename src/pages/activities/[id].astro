@@ -1,0 +1,15 @@
+---
+import MainLayout from '../../layouts/MainLayout.astro';
+import { getCollection, render } from 'astro:content';
+import { themeLabel } from '../../lib/themes';
+import ActivityCover from '../../components/ActivityCover.astro';
+export async function getStaticPaths() {
+  const activities = await getCollection('activities');
+  return activities.map(activity => ({ params: { id: activity.id }, props: { activity } }));
+}
+const { activity } = Astro.props;
+const { Content } = await render(activity);
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const data = activity.data;
+---
+<MainLayout title={data.title} description={data.description}><article class="shell detail"><a class="no-print muted" href={`${base}/activities/`}>← Retour aux activités</a><ActivityCover class="detail-cover" data={data} large /><h1>{data.title}</h1><p>{data.description}</p><span class="pill">{themeLabel(data.theme)}</span><div class="meta"><span>👧 {data.ageMin}–{data.ageMax} ans</span><span>⏱ {data.duration} min</span><span>📍 {data.location === 'inside' ? 'Intérieur' : data.location === 'outside' ? 'Extérieur' : 'Intérieur ou extérieur'}</span></div><button class="btn no-print" type="button" onclick="window.print()">🖨️ Imprimer la fiche</button><section><h2>🎯 Objectifs</h2><ul>{data.objectives.map(item => <li>{item}</li>)}</ul></section><section><h2>🧺 Matériel</h2><ul>{data.materials.map(item => <li>{item}</li>)}</ul></section><section class="prose"><h2>✨ Déroulement</h2><Content /></section>{data.safety && <section><h2>🛟 Précautions</h2><p>{data.safety}</p></section>}</article></MainLayout>

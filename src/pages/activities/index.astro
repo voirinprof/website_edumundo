@@ -1,0 +1,36 @@
+---
+import MainLayout from '../../layouts/MainLayout.astro';
+import { getCollection } from 'astro:content';
+import ActivityCover from '../../components/ActivityCover.astro';
+import { themes, themeLabel, activityUrl } from '../../lib/themes';
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const activities = await getCollection('activities');
+---
+<MainLayout title="Toutes les activités"><div class="shell"><div class="page-intro"><h1 class="page-title">Toutes les activités 🎨</h1><p class="muted">Trouve l'activité parfaite pour ton groupe.</p><div class="filters"><input id="search" type="search" placeholder="🔎 Rechercher une activité" aria-label="Rechercher une activité"/><select id="theme" aria-label="Thématique"><option value="">Toutes les thématiques</option>{themes.map(t => <option value={t.id}>{t.label}</option>)}</select><select id="age" aria-label="Âge"><option value="">Tous les âges</option><option value="1">0–18 mois</option><option value="2">18 mois–3 ans</option><option value="4">3–5 ans</option><option value="7">5–8 ans</option><option value="10">9–12 ans</option></select><select id="location" aria-label="Lieu"><option value="">Tous les lieux</option><option value="inside">Intérieur</option><option value="outside">Extérieur</option></select></div><p id="count" class="muted" aria-live="polite"></p></div><div class="activity-grid" id="activity-grid">{activities.map(a => <a class="activity-card" href={activityUrl(a.id,base)} data-title={`${a.data.title} ${a.data.description} ${a.data.materials.join(' ')}`.toLocaleLowerCase('fr-CA')} data-theme={a.data.theme} data-min={a.data.ageMin} data-max={a.data.ageMax} data-location={a.data.location}><ActivityCover class="activity-cover" data={a.data} /><div class="activity-body"><span class="pill">{themeLabel(a.data.theme)}</span><h3>{a.data.title}</h3><p>{a.data.description}</p><div class="meta"><span>👧 {a.data.ageMin}–{a.data.ageMax} ans</span><span>⏱ {a.data.duration} min</span></div></div></a>)}</div><p class="empty" id="empty" hidden>Aucune activité ne correspond à ces filtres. Essaie d'élargir ta recherche.</p></div><div style="height:70px"></div></MainLayout>
+<script>
+  const search = document.querySelector<HTMLInputElement>('#search')!;
+  const theme = document.querySelector<HTMLSelectElement>('#theme')!;
+  const age = document.querySelector<HTMLSelectElement>('#age')!;
+  const locationFilter = document.querySelector<HTMLSelectElement>('#location')!;
+  const cards = Array.from(document.querySelectorAll<HTMLElement>('.activity-card'));
+  const count = document.querySelector<HTMLElement>('#count')!;
+  const empty = document.querySelector<HTMLElement>('#empty')!;
+  const params = new URLSearchParams(window.location.search);
+  search.value = params.get('q') || '';
+  theme.value = params.get('theme') || '';
+  function update() {
+    const query = search.value.toLocaleLowerCase('fr-CA').trim();
+    const selectedAge = Number(age.value);
+    let visible = 0;
+    for (const card of cards) {
+      const matches = (!query || card.dataset.title?.includes(query)) && (!theme.value || card.dataset.theme === theme.value) && (!selectedAge || (Number(card.dataset.min) <= selectedAge && Number(card.dataset.max) >= selectedAge)) && (!locationFilter.value || card.dataset.location === locationFilter.value || card.dataset.location === 'both');
+      card.hidden = !matches;
+      if (matches) visible++;
+    }
+    count.textContent = `${visible} activité${visible > 1 ? 's' : ''} trouvée${visible > 1 ? 's' : ''}`;
+    empty.hidden = visible > 0;
+  }
+  [search,theme,age,locationFilter].forEach(el => el.addEventListener('input',update));
+  update();
+</script>
+<style>.activity-card[hidden],.empty[hidden]{display:none!important}</style>

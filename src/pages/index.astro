@@ -1,0 +1,15 @@
+---
+import MainLayout from '../layouts/MainLayout.astro';
+import { getCollection } from 'astro:content';
+import ActivityCover from '../components/ActivityCover.astro';
+import { themes, themeLabel, activityUrl } from '../lib/themes';
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const activities = (await getCollection('activities')).sort((a,b) => Number(b.data.featured) - Number(a.data.featured)).slice(0,6);
+---
+<MainLayout title="Un monde d'idées à partager !">
+  <section class="hero"><div class="shell hero-inner"><div><span class="eyebrow">✨ Pour les éducatrices et les petits curieux</span><h1>Un monde d'<em>idées</em> à partager !</h1><p>Des activités amusantes, créatives et faciles à organiser pour les enfants de 0 à 12 ans, à la garderie, au CPE ou au service de garde scolaire.</p><div class="hero-actions"><a class="btn" href={`${base}/activities/`}>Explorer les activités →</a><a class="btn secondary" href="#themes">Découvrir les thèmes</a><a class="btn secondary" href={`${base}/semaine/`}>🎲 Ma semaine au hasard</a></div></div><div class="hero-art" aria-hidden="true">🎨🌈</div></div></section>
+  <div class="shell"><form class="search-panel" action={`${base}/activities/`} method="get"><label for="home-search"><strong>🔎 Une idée en tête ?</strong></label><input id="home-search" name="q" placeholder="Ex. : peinture, forêt, expériences..."/><button class="btn" type="submit">Rechercher →</button></form></div>
+  <section class="section" id="themes"><div class="shell"><div class="section-head"><div><h2>Explore nos univers 🌟</h2><p class="muted">Des idées pour chaque envie et chaque découverte.</p></div></div><div class="theme-grid">{themes.map(theme => <a class="theme-card" href={`${base}/activities/?theme=${theme.id}`} style={`background:${theme.color}`}><span class="theme-emoji">{theme.emoji}</span><strong>{theme.label}</strong></a>)}</div></div></section>
+  <section class="section alt"><div class="shell"><div class="section-head"><div><h2>À découvrir 🎈</h2><p class="muted">Quelques activités pour commencer l'aventure.</p></div><a href={`${base}/activities/`}><strong>Voir toutes les activités →</strong></a></div><div class="activity-grid">{activities.map(activity => <a class="activity-card" href={activityUrl(activity.id,base)}><ActivityCover class="activity-cover" data={activity.data} /><div class="activity-body"><span class="pill">{themeLabel(activity.data.theme)}</span><h3>{activity.data.title}</h3><p>{activity.data.description}</p><div class="meta"><span>👧 {activity.data.ageMin}–{activity.data.ageMax} ans</span><span>⏱ {activity.data.duration} min</span></div></div></a>)}</div></div></section>
+  <section class="section"><div class="shell"><div class="banner"><div><h2>💡 Tu as une belle idée d'activité ?</h2><p>EduMondo grandit grâce au partage entre éducatrices !</p></div><a class="btn" href={`${base}/contribute/`}>Partager mon idée →</a></div></div></section>
+</MainLayout>

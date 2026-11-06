@@ -1,0 +1,60 @@
+---
+import MainLayout from '../layouts/MainLayout.astro';
+import { CONTACT_EMAIL, FACEBOOK_URL } from '../lib/contact';
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+const template = `Titre de l'activité :
+Courte description :
+Thématique (nature, arts, sciences, motricité, histoires, émotions, logique, fêtes et saisons) :
+Âge des enfants (de … à … ans) :
+Durée (minutes) :
+Lieu (intérieur / extérieur / les deux) :
+Matériel :
+-
+Objectifs :
+-
+Déroulement (étapes) :
+1.
+Précautions :
+
+Photos : vous pouvez joindre des photos (sans visage d'enfant reconnaissable).`;
+
+const mailto = CONTACT_EMAIL
+  ? `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('Idée d\'activité pour EduMondo')}&body=${encodeURIComponent(template)}`
+  : '';
+---
+<MainLayout title="Partager une idée">
+  <div class="shell page-intro prose">
+    <h1 class="page-title">Partage une idée 💌</h1>
+    <p>EduMondo est une bibliothèque d'activités conçue pour inspirer les éducatrices. Tu as une activité à proposer ? Merci de contribuer !</p>
+    <p>Envoie-nous ton idée par courriel ou sur Facebook, avec des photos si tu en as. Nous l'ajouterons au site.</p>
+    <div class="share-actions">
+      {mailto && <a class="btn" href={mailto}>✉️ Envoyer par courriel</a>}
+      {FACEBOOK_URL && <a class="btn secondary" href={FACEBOOK_URL} target="_blank" rel="noopener noreferrer">📘 Partager sur Facebook ↗</a>}
+    </div>
+    {CONTACT_EMAIL && <p class="muted">Adresse : <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a></p>}
+    <h2>📝 Modèle à remplir</h2>
+    <p>Pour nous aider, copie ce modèle dans ton message. Il est déjà inclus si tu passes par le bouton courriel.</p>
+    <pre class="share-template" id="share-template">{template}</pre>
+    <p><button class="btn secondary" type="button" id="copy-template">📋 Copier le modèle</button> <span class="muted" id="copy-status" aria-live="polite"></span></p>
+    <p class="muted">Aucun renseignement personnel sur les enfants (nom, photo où l'enfant est reconnaissable) ne doit être partagé.</p>
+    <p><a href={`${base}/activities/`}>← Retour aux activités</a></p>
+  </div>
+  <div style="height:100px"></div>
+</MainLayout>
+<script>
+  const button = document.querySelector<HTMLButtonElement>('#copy-template')!;
+  const status = document.querySelector<HTMLElement>('#copy-status')!;
+  button.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(document.querySelector('#share-template')!.textContent || '');
+      status.textContent = 'Modèle copié !';
+    } catch {
+      status.textContent = 'Copie impossible : sélectionne le texte à la main.';
+    }
+  });
+</script>
+<style>
+  .share-actions{display:flex;flex-wrap:wrap;gap:12px;margin:24px 0 8px}
+  .share-template{background:#fff;border:2px solid #f2e9e3;border-radius:18px;padding:18px 20px;white-space:pre-wrap;font-family:inherit;font-size:.95rem;line-height:1.6;margin:0}
+</style>

@@ -1,0 +1,132 @@
+---
+import MainLayout from '../layouts/MainLayout.astro';
+import ActivityCover from '../components/ActivityCover.astro';
+import { getCollection } from 'astro:content';
+import { themeLabel, activityUrl } from '../lib/themes';
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const activities = await getCollection('activities');
+const days = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
+---
+<MainLayout title="Ma semaine d'activités" description="Générer au hasard une semaine d'activités pour son groupe.">
+  <div class="shell">
+    <div class="page-intro">
+      <h1 class="page-title">Ma semaine d'activités 🎲</h1>
+      <p class="muted">Une activité par jour, tirée au hasard. Un jour ne te plaît pas ? Change-le d'un clic.</p>
+      <div class="filters no-print">
+        <select id="age" aria-label="Âge du groupe"><option value="">Tous les âges</option><option value="1">0–18 mois</option><option value="2">18 mois–3 ans</option><option value="4">3–5 ans</option><option value="7">5–8 ans</option><option value="10">9–12 ans</option></select>
+        <select id="location" aria-label="Lieu"><option value="">Intérieur et extérieur</option><option value="inside">Intérieur seulement</option><option value="outside">Extérieur seulement</option></select>
+        <button class="btn" type="button" id="generate">🎲 Nouvelle semaine</button>
+        <button class="btn secondary" type="button" onclick="window.print()">🖨️ Imprimer</button>
+      </div>
+      <p id="notice" class="muted" aria-live="polite"></p>
+    </div>
+
+    <ol class="week" id="week">
+      {days.map((day, i) => (
+        <li class="week-day" data-day={i}>
+          <div class="week-day-head"><h2>{day}</h2><button class="reroll no-print" type="button" data-day={i} aria-label={`Changer l'activité de ${day}`}>🔄 Changer</button></div>
+          <div class="week-slot"></div>
+        </li>
+      ))}
+    </ol>
+
+    <!-- Toutes les activités, cachées : le script copie celles qui sont tirées au sort. -->
+    <div id="pool" hidden>
+      {activities.map(a => (
+        <a class="activity-card" href={activityUrl(a.id, base)} data-id={a.id} data-theme={a.data.theme} data-min={a.data.ageMin} data-max={a.data.ageMax} data-location={a.data.location}>
+          <ActivityCover class="activity-cover" data={a.data} />
+          <div class="activity-body"><span class="pill">{themeLabel(a.data.theme)}</span><h3>{a.data.title}</h3><p>{a.data.description}</p><div class="meta"><span>👧 {a.data.ageMin}–{a.data.ageMax} ans</span><span>⏱ {a.data.duration} min</span></div></div>
+        </a>
+      ))}
+    </div>
+  </div>
+  <div style="height:70px"></div>
+</MainLayout>
+
+<script>
+  const DAYS = 5;
+  const pool = Array.from(document.querySelectorAll<HTMLElement>('#pool .activity-card'));
+  const age = document.querySelector<HTMLSelectElement>('#age')!;
+  const place = document.querySelector<HTMLSelectElement>('#location')!;
+  const notice = document.querySelector<HTMLElement>('#notice')!;
+  const slots = Array.from(document.querySelectorAll<HTMLElement>('.week-slot'));
+  let week: (HTMLElement | null)[] = [];
+
+  const shuffle = <T,>(list: T[]) => {
+    const a = [...list];
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    return a;
+  };
+
+  function candidates() {
+    const selectedAge = Number(age.value);
+    return pool.filter(card =>
+      (!selectedAge || (Number(card.dataset.min) <= selectedAge && Number(card.dataset.max) >= selectedAge)) &&
+      (!place.value || card.dataset.location === place.value || card.dataset.location === 'both'));
+  }
+
+  // Choisit une activité en évitant, si possible, celles déjà prévues
+  // puis les thèmes déjà présents dans la semaine.
+  function pick(list: HTMLElement[], taken: (HTMLElement | null)[], exclude?: HTMLElement | null) {
+    const used = taken.filter(Boolean) as HTMLElement[];
+    const themes = new Set(used.map(c => c.dataset.theme));
+    const options = shuffle(list.filter(c => c !== exclude));
+    return options.find(c => !used.includes(c) && !themes.has(c.dataset.theme))
+      ?? options.find(c => !used.includes(c))
+      ?? options[0] ?? exclude ?? null;
+  }
+
+  function render() {
+    week.forEach((card, i) => {
+      slots[i].replaceChildren(card ? card.cloneNode(true) : Object.assign(document.createElement('p'), { className: 'empty', textContent: 'Aucune activité disponible.' }));
+    });
+    const params = new URLSearchParams(location.search);
+    params.set('s', week.map(c => c?.dataset.id ?? '').join(','));
+    age.value ? params.set('age', age.value) : params.delete('age');
+    place.value ? params.set('lieu', place.value) : params.delete('lieu');
+    history.replaceState(null, '', `?${params}`);
+  }
+
+  function generate() {
+    const list = candidates();
+    week = [];
+    for (let i = 0; i < DAYS; i++) week.push(pick(list, week));
+    const distinct = new Set(week.filter(Boolean)).size;
+    notice.textContent = list.length === 0
+      ? 'Aucune activité ne correspond à ces filtres.'
+      : distinct < DAYS ? `Seulement ${list.length} activité${list.length > 1 ? 's' : ''} pour ces filtres : certaines reviennent dans la semaine.` : '';
+    render();
+  }
+
+  function reroll(day: number) {
+    const others = week.filter((_, i) => i !== day);
+    week[day] = pick(candidates(), others, week[day]);
+    render();
+  }
+
+  // Recharger la page (ou ouvrir un lien partagé) garde la même semaine.
+  const params = new URLSearchParams(location.search);
+  age.value = params.get('age') || '';
+  place.value = params.get('lieu') || '';
+  const saved = (params.get('s') || '').split(',').map(id => pool.find(c => c.dataset.id === id) ?? null);
+  if (saved.length === DAYS && saved.every(Boolean)) { week = saved; render(); } else generate();
+
+  document.querySelector('#generate')!.addEventListener('click', generate);
+  [age, place].forEach(el => el.addEventListener('input', generate));
+  document.querySelectorAll<HTMLButtonElement>('.reroll').forEach(b => b.addEventListener('click', () => reroll(Number(b.dataset.day))));
+</script>
+
+<style>
+  .week{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(5,1fr);gap:16px}
+  .week-day-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+  .week-day-head h2{font-size:1.25rem;margin:0}
+  .reroll{border:2px solid #f4d5d8;background:#fff;border-radius:999px;padding:5px 11px;font-weight:800;font-size:.8rem}
+  .reroll:hover{background:#fff1f2}
+  .week .activity-cover{height:120px;font-size:3.8rem}
+  .week .activity-body{padding:16px}
+  .week .activity-body h3{font-size:1.08rem}
+  .week .activity-body p{font-size:.92rem}
+  @media(max-width:1000px){.week{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:540px){.week{grid-template-columns:1fr}}
+  @media print{.week{grid-template-columns:1fr;gap:10px}.week-day{break-inside:avoid}.week .activity-card{display:flex;box-shadow:none}.week .activity-cover{width:110px;height:auto;min-height:90px;flex:none}}
+</style>

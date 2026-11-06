@@ -1,0 +1,24 @@
+---
+import { Image } from 'astro:assets';
+import { themes } from '../lib/themes';
+
+interface Props {
+  data: { theme: string; emoji: string; cover?: ImageMetadata; coverAlt?: string };
+  class: string;
+  /** true on the activity page: larger image, loaded right away, meaningful alt text */
+  large?: boolean;
+}
+const { data, class: className, large = false } = Astro.props;
+const color = themes.find(t => t.id === data.theme)?.color || '#fff1c9';
+---
+<div class={className} style={`background:${color}`}>
+  {data.cover
+    ? <Image
+        src={data.cover}
+        alt={large ? (data.coverAlt ?? '') : ''}
+        widths={large ? [820, 1640] : [400, 800]}
+        sizes={large ? '(max-width: 856px) 100vw, 820px' : '(max-width: 540px) 100vw, (max-width: 780px) 50vw, 360px'}
+        loading={large ? 'eager' : 'lazy'}
+      />
+    : data.emoji}
+</div>
